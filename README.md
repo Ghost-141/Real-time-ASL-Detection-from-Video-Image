@@ -1,6 +1,6 @@
 # ASL Detection
 
-A real-time American Sign Language (ASL) letter recognition system built with a **FastAPI backend** and a **React + Vite frontend**. The backend serves a **TorchScript-serialized PyTorch model** for efficient production inference and uses **MediaPipe hand landmarks** for robust hand feature extraction.
+A real-time American Sign Language (ASL) recognition system built with a **FastAPI backend** and a **React + Vite frontend**. The backend serves a **serialized PyTorch model** for efficient production inference and uses **MediaPipe hand landmarks** for robust hand feature extraction.
 
 The system supports:
 
@@ -11,12 +11,14 @@ Designed for low-latency, scalable deployment, this application enables real-tim
 
 
 ## Table of Contents
+- [ASL Detection](#asl-detection)
+  - [Table of Contents](#table-of-contents)
   - [Architecture](#architecture)
   - [Current Project Structure](#current-project-structure)
   - [Prerequisites](#prerequisites)
   - [Local Setup](#local-setup)
-    - [Backend](#1-backend)
-    - [Frontend](#2-frontend)
+    - [Backend](#backend)
+    - [Frontend](#frontend)
   - [Configuration](#configuration)
     - [Backend variables](#backend-variables)
     - [Frontend variables](#frontend-variables)
@@ -27,14 +29,14 @@ Designed for low-latency, scalable deployment, this application enables real-tim
     - [HTTP error shape](#http-error-shape)
   - [How the System Works](#how-the-system-works)
   - [Testing](#testing)
-  - [Training and Model Artifacts](#training-and-model-artifacts)
+  - [Training](#training)
   - [Deployment Notes](#deployment-notes)
     - [Docker](#docker)
 
 ## Architecture
 
 - Backend: FastAPI app with startup-loaded model, shared app state, JSON logging, and custom exception handlers.
-- Inference path: image/frame decode -> resize -> MediaPipe hand detection -> feature extraction -> TorchScript classification -> confidence gating.
+- Inference path: image/frame decode -> resize -> MediaPipe hand detection -> feature extraction -> MLP classification -> confidence gating.
 - Live mode stability: WebSocket frame throttling (`FrameGate`) + majority-vote smoothing window.
 - Frontend:
   - Upload mode calls `POST /predict/image`.
@@ -43,63 +45,68 @@ Designed for low-latency, scalable deployment, this application enables real-tim
 
 ## Current Project Structure
 
-```text
+```markdown
 .
-|- backend/
-|  |- app/
-|  |  |- api/v1/endpoints/
-|  |  |  |- health.py
-|  |  |  |- predict_image.py
-|  |  |  `- ws_predict.py
-|  |  |- core/
-|  |  |  |- config.py
-|  |  |  |- dependency.py
-|  |  |  |- exceptions.py
-|  |  |  `- logging.py
-|  |  |- schemas/
-|  |  |  |- health.py
-|  |  |  `- predict.py
-|  |  |- services/
-|  |  |  |- mediapipe_hands.py
-|  |  |  |- model_loader.py
-|  |  |  |- predictor.py
-|  |  |  |- preprocessing.py
-|  |  |  `- smoothing.py
-|  |  |- utils/
-|  |  |  |- image_io.py
-|  |  |  `- timing.py
-|  |  |- main.py
-|  |  `- state.py
-|  |- tests/
-|  `- weights/
-|     |- asl_classifier.pt
-|     |- calibration.json
-|     |- hand_landmarker.task
-|     |- labels.json
-|     `- preprocess.json
-|- frontend/
-|  |- src/
-|  |  |- components/
-|  |  |  |- LivePredictor.jsx
-|  |  |  |- StatusPill.jsx
-|  |  |  `- UploadPredictor.jsx
-|  |  |- services/
-|  |  |  |- api.js
-|  |  |  `- ws.js
-|  |  |- App.jsx
-|  |  |- main.jsx
-|  |  `- styles.css
-|  |- package.json
-|  `- vite.config.js
-|- scripts/
-|  |- extract_feature.py
-|  |- prediction.py
-|  |- train.py
-|  `- weights/
-|- dataset/
-|- Dockerfile
-|- pyproject.toml
-`- README.md
+├─ frontend
+├─ backend/
+│  ├─ app/
+│  │  ├─ __init__.py
+│  │  ├─ main.py
+│  │  ├─ state.py
+│  │  ├─ api/
+│  │  │  ├─ __init__.py
+│  │  │  └─ v1/
+│  │  │     ├─ __init__.py
+│  │  │     ├─ router.py
+│  │  │     └─ endpoints/
+│  │  │        ├─ __init__.py
+│  │  │        ├─ health.py
+│  │  │        ├─ predict_image.py
+│  │  │        └─ ws_predict.py
+│  │  ├─ core/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ config.py
+│  │  │  ├─ dependency.py
+│  │  │  ├─ exceptions.py
+│  │  │  └─ logging.py
+│  │  ├─ schemas/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ health.py
+│  │  │  └─ predict.py
+│  │  ├─ services/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ mediapipe_hands.py
+│  │  │  ├─ model_loader.py
+│  │  │  ├─ predictor.py
+│  │  │  ├─ preprocessing.py
+│  │  │  └─ smoothing.py
+│  │  └─ utils/
+│  │     ├─ __init__.py
+│  │     ├─ image_io.py
+│  │     └─ timing.py
+│  ├─ tests/
+│  │  ├─ __init__.py
+│  │  ├─ test_health.py
+│  │  ├─ test_predict_image.py
+│  ├─ weights/
+│  │  ├─ asl_classifier.pt
+│  │  ├─ labels.json
+│  │  ├─ preprocess.json
+│  │  ├─ calibration.json
+│  │  └─ hand_landmarker.task
+│  └─ .env.example
+├─ scripts/
+│  ├─ weights/
+│  ├─ prepared/
+│  ├─ train.py
+│  ├─ extract_features.py
+│  └─ prediction.py
+├─ dataset/
+│  └─ (raw/ processed/ splits/ etc.)
+├─ Dockerfile
+├─ .gitignore
+├─ README.md
+└─ pyproject.toml
 ```
 
 ## Prerequisites
@@ -314,32 +321,27 @@ Current tests cover:
 - Health endpoint contract
 - Image prediction endpoint contract
 
-## Training and Model Artifacts
+## Training
 
 Training utilities are in `scripts/`:
 - `extract_feature.py`: dataset feature extraction with MediaPipe
 - `train.py`: model training + TorchScript export
 - `prediction.py`: local webcam inference script
 
-Runtime artifacts expected by backend:
-- `asl_classifier.pt`
-- `labels.json`
-- `preprocess.json`
-- optional `calibration.json` (`suggested_conf_threshold`)
-- `hand_landmarker.task` (served to frontend for overlay mode)
-
 ## Deployment Notes
 
 - Use TLS in production (`wss://` for WebSockets).
 - Keep `CORS_ORIGINS` restricted to trusted domains.
 - Set `EXPOSE_ERROR_DETAILS=false` in production.
-- Run behind a reverse proxy (Nginx/Caddy/Traefik) with WebSocket upgrade support.
 - Ensure the `backend/weights` directory is mounted and immutable at runtime.
 
 ### Docker
 
+The docker file only contains the backend setup for deployment. The frontend can be included here based on the deployment stratagey.
+
 ```bash
 docker build -t asl-detection .
+
 # CPU run
 docker run --rm -p 8000:8000 asl-detection
 
