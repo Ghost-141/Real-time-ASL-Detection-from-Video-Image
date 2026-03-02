@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { predictImage } from '../services/api'
+import { logError } from '../services/errorLogger'
 
 function UploadPredictor() {
   const [preview, setPreview] = useState('')
@@ -19,6 +20,11 @@ function UploadPredictor() {
       const payload = await predictImage(file)
       setResult(payload)
     } catch (err) {
+      logError('ui.uploadPredictor.onSelectFile', err, {
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      })
       setError(err.message || 'Failed to predict')
       setResult(null)
     } finally {

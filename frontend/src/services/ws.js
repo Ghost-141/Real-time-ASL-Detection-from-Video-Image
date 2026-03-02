@@ -1,7 +1,7 @@
 import ReconnectingWebSocket from 'reconnecting-websocket'
 
 const WS_BASE = import.meta.env.VITE_API_WS_BASE || 'ws://127.0.0.1:8080'
-const API_PREFIX = import.meta.env.VITE_API_PREFIX || ''
+const API_PREFIX = import.meta.env.VITE_API_PREFIX || '/api/v1'
 
 function withPrefix(path) {
   let base = WS_BASE

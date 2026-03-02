@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision'
 import { createPredictSocket } from '../services/ws'
+import { logError } from '../services/errorLogger'
 
 const LANDMARK_FPS = 15
 
@@ -100,6 +101,7 @@ function LivePredictor() {
         }
         connectSocket()
       } catch (err) {
+        logError('ui.livePredictor.cameraAccess', err)
         setError('Camera access failed')
       }
     }
@@ -113,6 +115,10 @@ function LivePredictor() {
         setConnected(true)
       }
 
+      ws.onconnecting = () => {
+        setConnected(false)
+      }
+
       ws.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data)
@@ -122,14 +128,26 @@ function LivePredictor() {
             setError(payload.detail)
           }
         } catch {
+          logError('ui.livePredictor.wsMessageParse', new Error('Invalid response from server'), {
+            rawMessage: String(event.data || ''),
+          })
           setError('Invalid response from server')
         }
       }
 
-      ws.onerror = () => setError('WebSocket error')
+      ws.onerror = () => {
+        setConnected(false)
+        logError('ui.livePredictor.websocketError', new Error('WebSocket error'))
+        setError('WebSocket error (reconnecting...)')
+      }
       ws.onclose = (event) => {
         setConnected(false)
         const reason = event?.reason ? ` (${event.reason})` : ''
+        logError('ui.livePredictor.websocketClose', new Error('WebSocket disconnected'), {
+          code: event?.code ?? 'unknown',
+          reason: event?.reason || '',
+          wasClean: Boolean(event?.wasClean),
+        })
         setError(`WebSocket disconnected: ${event?.code ?? 'unknown'}${reason}`)
         if (timerRef.current) {
           clearInterval(timerRef.current)
@@ -188,7 +206,7 @@ function LivePredictor() {
         'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
       )
       const apiBase = import.meta.env.VITE_API_HTTP_BASE || 'http://127.0.0.1:8080'
-      const modelUrl = `${apiBase.replace(/\\/$/, '')}/weights/hand_landmarker.task`
+      const modelUrl = `${apiBase.replace(/\/$/, '')}/weights/hand_landmarker.task`
       landmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: modelUrl,
@@ -235,6 +253,7 @@ function LivePredictor() {
         }
       })
       .catch((err) => {
+        logError('ui.livePredictor.landmarkerInit', err)
         setError(`Landmark init failed: ${err.message || err}`)
       })
 
