@@ -1,0 +1,10 @@
+{
+  "image_size_note": "original",
+  "max_num_hands": 1,
+  "min_detection_confidence": 0.5,
+  "feature_version": "v1_normxyz_bones_angles_handpresent",
+  "include_z": true,
+  "include_bones": true,
+  "include_angles": true,
+  "include_hand_present": true
+}
