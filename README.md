@@ -11,8 +11,6 @@ Designed for low-latency, scalable deployment, this application enables real-tim
 
 
 ## Table of Contents
-- [ASL Detection](#asl-detection)
-  - [Table of Contents](#table-of-contents)
   - [Architecture](#architecture)
   - [Current Project Structure](#current-project-structure)
   - [Prerequisites](#prerequisites)
