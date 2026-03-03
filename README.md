@@ -337,14 +337,36 @@ Training utilities are in `scripts/`:
 
 ### Docker
 
-The docker file only contains the backend setup for deployment. The frontend can be included here based on the deployment stratagey.
+Docker support includes both backend and frontend builds:
+
+- `docker/backend.Dockerfile`
+- `docker/frontend.Dockerfile`
+- `docker/docker-compose.yml`
+
+Run both services with Compose:
 
 ```bash
-docker build -t asl-detection .
-
-# CPU run
-docker run --rm -p 8000:8000 asl-detection
-
-# GPU run (NVIDIA runtime)
-docker run --rm --gpus all -p 8000:8000 asl-detection
+# from project root
+docker compose -f docker/docker-compose.yml up --build
 ```
+
+Services:
+- Frontend: `http://127.0.0.1:5173`
+- Backend: `http://127.0.0.1:8080`
+
+
+Optional: build images directly without Compose:
+
+```bash
+docker build -f docker/backend.Dockerfile -t asl-backend .
+docker build -f docker/frontend.Dockerfile -t asl-frontend .
+```
+
+
+Run containers:
+
+```bash
+docker run --rm --gpus all -p 8080:8080 asl-backend
+docker run --rm -p 5173:5173 asl-frontend
+```
+

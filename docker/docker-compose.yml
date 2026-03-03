@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: asl-backend
+    gpus: all
+    ports:
+      - "8080:8080"
+    environment:
+      CORS_ORIGINS: '["http://localhost:5173","http://127.0.0.1:5173"]'
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+    container_name: asl-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
